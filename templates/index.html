@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Discord AFK Sistemi</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🎧 Discord AFK Sistemi</h1>
+
+        <div class="form-box">
+            <h2>Yeni Bot Ekle</h2>
+            <input type="password" id="token" placeholder="Discord Token">
+            <input type="text" id="guild_id" placeholder="Sunucu ID">
+            <input type="text" id="channel_id" placeholder="Ses Kanalı ID">
+            <button onclick="addBot()">Başlat</button>
+        </div>
+
+        <div class="bots-box">
+            <h2>Aktif Botlar</h2>
+            <div id="bots-list">Yükleniyor...</div>
+        </div>
+    </div>
+
+    <script>
+        async function addBot() {
+            const token = document.getElementById('token').value.trim();
+            const guild_id = document.getElementById('guild_id').value.trim();
+            const channel_id = document.getElementById('channel_id').value.trim();
+
+            if (!token || !guild_id || !channel_id) {
+                alert('Tüm alanları doldur!');
+                return;
+            }
+
+            const res = await fetch('/api/bots', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({token, guild_id, channel_id})
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                document.getElementById('token').value = '';
+                document.getElementById('guild_id').value = '';
+                document.getElementById('channel_id').value = '';
+                loadBots();
+            } else {
+                alert(data.error);
+            }
+        }
+
+        async function removeBot(id) {
+            if (!confirm('Bu botu durdurmak istiyor musun?')) return;
+            await fetch('/api/bots/' + id, {method: 'DELETE'});
+            loadBots();
+        }
+
+        async function loadBots() {
+            const res = await fetch('/api/bots');
+            const bots = await res.json();
+            const list = document.getElementById('bots-list');
+
+            if (Object.keys(bots).length === 0) {
+                list.innerHTML = '<p class="empty">Henüz bot yok</p>';
+                return;
+            }
+
+            list.innerHTML = Object.entries(bots).map(([id, b]) => `
+                <div class="bot-card">
+                    <div>
+                        <strong>ID:</strong> ${id}<br>
+                        <strong>Durum:</strong> <span class="status">${b.status}</span><br>
+                        <strong>Sunucu:</strong> ${b.guild_id} | <strong>Kanal:</strong> ${b.channel_id}
+                    </div>
+                    <button class="danger" onclick="removeBot('${id}')">Durdur</button>
+                </div>
+            `).join('');
+        }
+
+        loadBots();
+        setInterval(loadBots, 5000);
+    </script>
+</body>
+</html>
